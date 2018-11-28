@@ -1,6 +1,3 @@
-#include <sparsehash/dense_hash_map>
-#include <unordered_set>
-
 namespace poker_eval {
 
 // Whether the given card-keyed associative container contains the given card.
@@ -49,7 +46,7 @@ inline void for_each_next_hand(const Hand& hand,
 // cards for evaluation (and the other two cards don't matter), one may be
 // arbitrarily set as a common representative for both.
 // This is used to help collapse multiple states in the finite-state-machine.
-using ToRepresentativeHand = std::unordered_map<EncodedHand, EncodedHand>;
+using ToRepresentativeHand = absl::flat_hash_map<EncodedHand, EncodedHand>;
 
 // Edges are the transitions emitting from a state. Each state has 52 out-edges
 // (less for repeated cards) that point to another state.
@@ -73,7 +70,7 @@ inline bool edges_compatible(const Edges& edge_set_1, const Edges& edge_set_2) {
 // An equivalence class, here, is a collections of hands that have a compatible
 // set of edges, e.g. hands that react identically to every future card.
 struct EquivalenceClass {
-  std::unordered_set<EncodedHand> hands;
+  absl::flat_hash_set<EncodedHand> hands;
   Edges edges;
 };
 
@@ -110,7 +107,7 @@ struct FlatSet {
 // performance.
 // google::dense_hash_map provides efficient lookup.
 // FlatSet provides efficient iteration.
-using EquivalenceClassHintMap = MapCardTo<google::dense_hash_map<HandOrScore, FlatSet<EquivalenceClassIndex>>>;
+using EquivalenceClassHintMap = MapCardTo<absl::flat_hash_map<HandOrScore, FlatSet<EquivalenceClassIndex>>>;
 
 // Find a equivalence class index where the equivalence_class's edges are
 // compatible with the given edges.
@@ -121,7 +118,7 @@ inline EquivalenceClassIndex find_matching_equivalence_class(
     uint8_t hand_size,
     const Edges& edges,
     const std::vector<EquivalenceClass>& equivalence_classes,
-    const google::dense_hash_map<EquivalenceClassIndex, size_t>& equivalence_class_counts) {
+    const absl::flat_hash_map<EquivalenceClassIndex, size_t>& equivalence_class_counts) {
   for (auto&& pair : equivalence_class_counts) {
     EquivalenceClassIndex equivalence_class_idx = pair.first;
     size_t count = pair.second;
@@ -213,10 +210,6 @@ inline void build_hands_of_size(uint8_t hand_size,
                                 FSM* fsm) {
   std::vector<EquivalenceClass> equivalence_classes;
   EquivalenceClassHintMap equivalence_class_hints;
-  // Required initialization for google::dense_hash_map.
-  for (Card card = 0; card < 52; card++) {
-    equivalence_class_hints[card].set_empty_key(0);
-  }
 
   // For each hand, we collect the out edges and try to find a valid matching
   // equivalence class.
@@ -231,9 +224,7 @@ inline void build_hands_of_size(uint8_t hand_size,
     // An edge may be part of many equivalence classes. We're looking for
     // equivalence classes that show up for as many edges as possible.
     // This counts the number of times an equivalence class has been seen.
-    google::dense_hash_map<EquivalenceClassIndex, size_t> equivalence_class_counts;
-    // Required initialization for google::dense_hash_map.
-    equivalence_class_counts.set_empty_key(EquivalenceClassNotFound);
+    absl::flat_hash_map<EquivalenceClassIndex, size_t> equivalence_class_counts;
 
     // Populate out edges.
     for_each_next_hand(hand, [&](Card card, const Hand& next_hand) {

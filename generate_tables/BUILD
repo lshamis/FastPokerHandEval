@@ -18,7 +18,8 @@ cc_library(
     ],
     deps = [
         ":common",
-        "@git_sparsehash//:sparsehash",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/container:flat_hash_set",
     ],
 )
 
