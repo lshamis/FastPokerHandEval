@@ -3,9 +3,10 @@
 #include <iostream>
 #include <utility>
 #include <vector>
+#include <random>
 
-#include <benchmark/benchmark.h>
-
+#define ANKERL_NANOBENCH_IMPLEMENT
+#include "third_party/nanobench/nanobench.h"
 #include "poker_hand_eval.h"
 
 template <size_t HandSize>
@@ -19,9 +20,10 @@ HandType<HandSize> random_hand() {
     for (size_t i = 0; i < 52; i++) { d[i] = i; }
     return d;
   }();
+  static std::mt19937 g(42);
   static size_t deal_index = 52;
   if (deal_index + HandSize >= 52) {
-    std::random_shuffle(std::begin(deck), std::end(deck));
+    std::shuffle(std::begin(deck), std::end(deck), g);
     deal_index = 0;
   }
 
@@ -31,66 +33,56 @@ HandType<HandSize> random_hand() {
   return hand;
 }
 
-void BM_Control5(benchmark::State& state) {
-  for (auto _ : state) {
-    benchmark::DoNotOptimize(random_hand<5>());
+int main() {
+  ankerl::nanobench::Bench bench;
+
+  bench.run("Control5", [&]() {
+    ankerl::nanobench::doNotOptimizeAway(random_hand<5>());
+  });
+
+  {
+    PokerHandEval<5> phe("tables/bfs5.phe");
+    bench.run("bfs5", [&]() {
+      ankerl::nanobench::doNotOptimizeAway(phe.eval(random_hand<5>()));
+    });
+  }
+
+  {
+    PokerHandEval<5> phe("tables/dfs5.phe");
+    bench.run("dfs5", [&]() {
+      ankerl::nanobench::doNotOptimizeAway(phe.eval(random_hand<5>()));
+    });
+  }
+
+  {
+    PokerHandEval<5> phe("tables/veb5.phe");
+    bench.run("veb5", [&]() {
+      ankerl::nanobench::doNotOptimizeAway(phe.eval(random_hand<5>()));
+    });
+  }
+
+  bench.run("Control7", [&]() {
+    ankerl::nanobench::doNotOptimizeAway(random_hand<7>());
+  });
+
+  {
+    PokerHandEval<7> phe("tables/bfs7.phe");
+    bench.run("bfs7", [&]() {
+      ankerl::nanobench::doNotOptimizeAway(phe.eval(random_hand<7>()));
+    });
+  }
+
+  {
+    PokerHandEval<7> phe("tables/dfs7.phe");
+    bench.run("dfs7", [&]() {
+      ankerl::nanobench::doNotOptimizeAway(phe.eval(random_hand<7>()));
+    });
+  }
+
+  {
+    PokerHandEval<7> phe("tables/veb7.phe");
+    bench.run("veb7", [&]() {
+      ankerl::nanobench::doNotOptimizeAway(phe.eval(random_hand<7>()));
+    });
   }
 }
-BENCHMARK(BM_Control5);
-
-void BM_phe_dfs5(benchmark::State& state) {
-  PokerHandEval<5> phe("tables/dfs5.phe");
-  for (auto _ : state) {
-    benchmark::DoNotOptimize(phe.eval(random_hand<5>()));
-  }
-}
-BENCHMARK(BM_phe_dfs5);
-
-void BM_phe_bfs5(benchmark::State& state) {
-  PokerHandEval<5> phe("tables/bfs5.phe");
-  for (auto _ : state) {
-    benchmark::DoNotOptimize(phe.eval(random_hand<5>()));
-  }
-}
-BENCHMARK(BM_phe_bfs5);
-
-void BM_phe_veb5(benchmark::State& state) {
-  PokerHandEval<5> phe("tables/veb5.phe");
-  for (auto _ : state) {
-    benchmark::DoNotOptimize(phe.eval(random_hand<5>()));
-  }
-}
-BENCHMARK(BM_phe_veb5);
-
-void BM_Control7(benchmark::State& state) {
-  for (auto _ : state) {
-    benchmark::DoNotOptimize(random_hand<7>());
-  }
-}
-BENCHMARK(BM_Control7);
-
-void BM_phe_dfs7(benchmark::State& state) {
-  PokerHandEval<7> phe("tables/dfs7.phe");
-  for (auto _ : state) {
-    benchmark::DoNotOptimize(phe.eval(random_hand<7>()));
-  }
-}
-BENCHMARK(BM_phe_dfs7);
-
-void BM_phe_bfs7(benchmark::State& state) {
-  PokerHandEval<7> phe("tables/bfs7.phe");
-  for (auto _ : state) {
-    benchmark::DoNotOptimize(phe.eval(random_hand<7>()));
-  }
-}
-BENCHMARK(BM_phe_bfs7);
-
-void BM_phe_veb7(benchmark::State& state) {
-  PokerHandEval<7> phe("tables/veb7.phe");
-  for (auto _ : state) {
-    benchmark::DoNotOptimize(phe.eval(random_hand<7>()));
-  }
-}
-BENCHMARK(BM_phe_veb7);
-
-BENCHMARK_MAIN();

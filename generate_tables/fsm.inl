@@ -1,3 +1,5 @@
+#include <unordered_set>
+
 namespace poker_eval {
 
 // Whether the given card-keyed associative container contains the given card.
@@ -46,7 +48,7 @@ inline void for_each_next_hand(const Hand& hand,
 // cards for evaluation (and the other two cards don't matter), one may be
 // arbitrarily set as a common representative for both.
 // This is used to help collapse multiple states in the finite-state-machine.
-using ToRepresentativeHand = absl::flat_hash_map<EncodedHand, EncodedHand>;
+using ToRepresentativeHand = std::unordered_map<EncodedHand, EncodedHand>;
 
 // Edges are the transitions emitting from a state. Each state has 52 out-edges
 // (less for repeated cards) that point to another state.
@@ -70,7 +72,7 @@ inline bool edges_compatible(const Edges& edge_set_1, const Edges& edge_set_2) {
 // An equivalence class, here, is a collections of hands that have a compatible
 // set of edges, e.g. hands that react identically to every future card.
 struct EquivalenceClass {
-  absl::flat_hash_set<EncodedHand> hands;
+  std::unordered_set<EncodedHand> hands;
   Edges edges;
 };
 
@@ -82,75 +84,8 @@ using EquivalenceClassIndex = int32_t;
 // list.
 const EquivalenceClassIndex EquivalenceClassNotFound = -1;
 
-// Efficient set implementation for small sets of integers with
-// frequent iteration, rare insert, and nothing else.
-template <typename T>
-struct FlatSet {
-  std::vector<T> items;
-
-  void insert(T item) {
-    if (std::find(begin(), end(), item) == end()) {
-      items.push_back(item);
-    }
-  }
-
-  typename std::vector<T>::iterator begin() { return items.begin(); }
-  typename std::vector<T>::iterator end() { return items.end(); }
-};
-
-// Used to help find the appropriate equivalence class for a given state.
-// Naively, we could iterate through all equivalence classes and see if any
-// match. This helps us avoid iterating through all equivalence classes by
-// allowing us to query for equivalence classes with certain edges.
-//
-// This is part of the inner-most loop of the code, and is critical to runtime
-// performance.
-// google::dense_hash_map provides efficient lookup.
-// FlatSet provides efficient iteration.
-using EquivalenceClassHintMap = MapCardTo<absl::flat_hash_map<HandOrScore, FlatSet<EquivalenceClassIndex>>>;
-
-// Find a equivalence class index where the equivalence_class's edges are
-// compatible with the given edges.
-// For efficiency, a hint table `equivalence_class_counts` is required, which
-// provides a mapping from equivalence class index to the number of matching
-// edges.
-inline EquivalenceClassIndex find_matching_equivalence_class(
-    uint8_t hand_size,
-    const Edges& edges,
-    const std::vector<EquivalenceClass>& equivalence_classes,
-    const absl::flat_hash_map<EquivalenceClassIndex, size_t>& equivalence_class_counts) {
-  for (auto&& pair : equivalence_class_counts) {
-    EquivalenceClassIndex equivalence_class_idx = pair.first;
-    size_t count = pair.second;
-    // Ideally (and impossibly), the equivalence class would match for all cards
-    // and have a count of 52. There are two things that reduce the count:
-    //
-    //   1) A card would result in a different states. This invalidates the
-    //      equivalence_class match.
-    //
-    //   2) A card is not a legal fsm transition, because it was already seen.
-    //      For example, assume flushes have been ruled out for two hands. One
-    //      of the hands was used to construct the equivalence class, and has no
-    //      defined transition for the two of spades (because the two of spades
-    //      is already in the hand). The second hand might have a two of clubs
-    //      (thereby not having a defined transition for it). But the hands are
-    //      equivalent. In all, the equivalent hands have their count reduced by
-    //      two.
-    //
-    // Decrements due to (2) are ok. Decrements due to (1) are not ok.
-    // Decrements due to (2) are limited to the number of cards across both
-    // hands. This limit might even be tighter.
-    // edges_compatible is a final decider, but a cheap filter is added to
-    // quickly check whether the number of decrements exceeds that possible by
-    // case (2).
-    if (count >= 52u - (2u * hand_size) &&
-        edges_compatible(equivalence_classes[equivalence_class_idx].edges, edges)) {
-      return equivalence_class_idx;
-    }
-  }
-
-  return EquivalenceClassNotFound;
-}
+using EquivalenceClassHintMap =
+  MapCardTo<std::unordered_map<HandOrScore, std::unordered_set<EquivalenceClassIndex>>>;
 
 // Populates a given equivalence_class with the given edges.
 // Excludes not-defined transitions and updates the hint map.
@@ -221,11 +156,6 @@ inline void build_hands_of_size(uint8_t hand_size,
     Edges edges;
     edges.fill(0);
 
-    // An edge may be part of many equivalence classes. We're looking for
-    // equivalence classes that show up for as many edges as possible.
-    // This counts the number of times an equivalence class has been seen.
-    absl::flat_hash_map<EquivalenceClassIndex, size_t> equivalence_class_counts;
-
     // Populate out edges.
     for_each_next_hand(hand, [&](Card card, const Hand& next_hand) {
       if (next_hand.size == max_hand_size) {
@@ -235,16 +165,24 @@ inline void build_hands_of_size(uint8_t hand_size,
       } else {
         edges[card] = (*representative_hand_map)[next_hand.encode()];
       }
-
-      // Increment possible equivalence classes.
-      for (auto&& equivalence_class_idx : equivalence_class_hints[card][edges[card]]) {
-        equivalence_class_counts[equivalence_class_idx]++;
-      }
     });
 
     // Choose a definitive equivalence class for the hand.
-    EquivalenceClassIndex equivalence_class_idx =
-        find_matching_equivalence_class(hand_size, edges, equivalence_classes, equivalence_class_counts);
+    EquivalenceClassIndex equivalence_class_idx = EquivalenceClassNotFound;
+    bool match_found = false;
+    for (Card card = 0; card < 52 && !match_found; card++) {
+      if (edges[card] == 0) {
+        continue;
+      }
+
+      for (auto idx : equivalence_class_hints[card][edges[card]]) {
+        if (edges_compatible(edges, equivalence_classes[idx].edges)) {
+          equivalence_class_idx = idx;
+          match_found = true;
+          break;
+        }
+      }
+    }
 
     // If no valid equivalence class exists, make a new one.
     // We add the current hand to the equivalence class later.

@@ -21,8 +21,10 @@ bool validate_fsm(const FSM& fsm, EvalFn eval_fn) {
     }
 
     if (expected != actual) {
-      printf("Mismatch for %s!\n  expected=%lu\n  actual=%lu\n",
-             hand.debug_string().c_str(), expected, actual);
+      printf("Mismatch for %s!\n  expected=%llu\n  actual=%llu\n",
+             hand.debug_string().c_str(),
+             static_cast<unsigned long long>(expected),
+             static_cast<unsigned long long>(actual));
       all_good = false;
     }
   });
@@ -83,7 +85,9 @@ std::string human_readable_filesize(size_t num_bytes) {
   static const char* units[] = {"B", "kiB", "MiB", "GiB", "TiB", "PiB", "EiB"};
 
   if (num_bytes < 1024) {
-    return static_cast<std::ostringstream&>(std::ostringstream{} << num_bytes << " B").str();
+      std::ostringstream ss;
+      ss << num_bytes << " B";
+      return ss.str();
   }
 
   double value = num_bytes;
@@ -93,7 +97,9 @@ std::string human_readable_filesize(size_t num_bytes) {
     unit_idx++;
   }
 
-  return static_cast<std::ostringstream&>(std::ostringstream{} << std::setprecision(2) << value << " " << units[unit_idx]).str();
+  std::ostringstream ss;
+  ss << std::setprecision(2) << value << " " << units[unit_idx];
+  return ss.str();
 }
 
 void save_lookup_table(const std::vector<uint32_t>& lookup_table,
@@ -148,7 +154,7 @@ void build_phes(
   auto duration_str = human_readable_duration(end_time - start_time);
   printf("\nTook: %s\n", duration_str.c_str());
 
-  printf("\nNum states: %lu.\n", fsm.size());
+  printf("\nNum states: %zu.\n", fsm.size());
   size_t num_bytes = 52 * fsm.size() * sizeof(uint32_t);
   auto filesize_str = human_readable_filesize(num_bytes);
   printf("Table size: %zu bytes (%s).\n", num_bytes, filesize_str.c_str());

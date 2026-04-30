@@ -1,6 +1,7 @@
 #pragma once
 
 #include <map>
+#include <string>
 
 #include "generate_tables/common.h"
 #include "generate_tables/memory_layout.h"

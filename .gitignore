@@ -1,2 +1,2 @@
-bazel-*
-tables/*.phe
+bin/
+tables/
