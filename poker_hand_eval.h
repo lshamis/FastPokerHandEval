@@ -30,6 +30,9 @@ class PokerHandEval {
   template <typename Container>
   uint32_t eval(const Container& hand) const;
 
+  template <typename Fn>
+  void sweep(Fn fn) const;
+
   template <typename Container, typename Fn>
   void sweep(const Container& prefix, Fn fn) const;
 
@@ -101,6 +104,12 @@ template <uint8_t hand_size>
 template <typename Container>
 uint32_t PokerHandEval<hand_size>::eval(const Container& hand) const {
   return details::EvalHelper<hand_size>::eval_iterator(table_, std::begin(hand));
+}
+
+template <uint8_t hand_size>
+template <typename Fn>
+void PokerHandEval<hand_size>::sweep(Fn fn) const {
+  sweep(std::array<uint32_t, 0>{}, fn);
 }
 
 template <uint8_t hand_size>

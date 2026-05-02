@@ -34,55 +34,129 @@ HandType<HandSize> random_hand() {
 }
 
 int main() {
-  ankerl::nanobench::Bench bench;
+  ankerl::nanobench::Bench latency_bench_5;
+  latency_bench_5
+      .title("5-cards latency")
+      .unit("hand")
+      .relative(true)
+      .performanceCounters(true)
+      .minEpochIterations(1000000);
 
-  bench.run("Control5", [&]() {
+  latency_bench_5.run("control5", [&]() {
     ankerl::nanobench::doNotOptimizeAway(random_hand<5>());
   });
 
   {
     PokerHandEval<5> phe("tables/bfs5.phe");
-    bench.run("bfs5", [&]() {
+    latency_bench_5.run("bfs5", [&]() {
       ankerl::nanobench::doNotOptimizeAway(phe.eval(random_hand<5>()));
     });
   }
 
   {
     PokerHandEval<5> phe("tables/dfs5.phe");
-    bench.run("dfs5", [&]() {
+    latency_bench_5.run("dfs5", [&]() {
       ankerl::nanobench::doNotOptimizeAway(phe.eval(random_hand<5>()));
     });
   }
 
   {
     PokerHandEval<5> phe("tables/veb5.phe");
-    bench.run("veb5", [&]() {
+    latency_bench_5.run("veb5", [&]() {
       ankerl::nanobench::doNotOptimizeAway(phe.eval(random_hand<5>()));
     });
   }
 
-  bench.run("Control7", [&]() {
+  ankerl::nanobench::Bench latency_bench_7;
+  latency_bench_7
+      .title("7-cards latency")
+      .unit("hand")
+      .relative(true)
+      .performanceCounters(true)
+      .minEpochIterations(1000000);
+
+  latency_bench_7.run("control7", [&]() {
     ankerl::nanobench::doNotOptimizeAway(random_hand<7>());
   });
 
   {
     PokerHandEval<7> phe("tables/bfs7.phe");
-    bench.run("bfs7", [&]() {
+    latency_bench_7.run("bfs7", [&]() {
       ankerl::nanobench::doNotOptimizeAway(phe.eval(random_hand<7>()));
     });
   }
 
   {
     PokerHandEval<7> phe("tables/dfs7.phe");
-    bench.run("dfs7", [&]() {
+    latency_bench_7.run("dfs7", [&]() {
       ankerl::nanobench::doNotOptimizeAway(phe.eval(random_hand<7>()));
     });
   }
 
   {
     PokerHandEval<7> phe("tables/veb7.phe");
-    bench.run("veb7", [&]() {
+    latency_bench_7.run("veb7", [&]() {
       ankerl::nanobench::doNotOptimizeAway(phe.eval(random_hand<7>()));
+    });
+  }
+
+  ankerl::nanobench::Bench throughput_bench_5;
+  throughput_bench_5
+      .title("5-cards throughput")
+      .unit("hand")
+      .epochs(1)
+      .epochIterations(1)
+      .batch(2598960)  // Number of 5-card hands.
+      .performanceCounters(true);
+
+  {
+    PokerHandEval<5> phe("tables/bfs5.phe");
+    throughput_bench_5.run("bfs5", [&]() {
+      phe.sweep([](auto hand, auto score) { ankerl::nanobench::doNotOptimizeAway(score); });
+    });
+  }
+
+  {
+    PokerHandEval<5> phe("tables/dfs5.phe");
+    throughput_bench_5.run("dfs5", [&]() {
+      phe.sweep([](auto hand, auto score) { ankerl::nanobench::doNotOptimizeAway(score); });
+    });
+  }
+
+  {
+    PokerHandEval<5> phe("tables/veb5.phe");
+    throughput_bench_5.run("veb5", [&]() {
+      phe.sweep([](auto hand, auto score) { ankerl::nanobench::doNotOptimizeAway(score); });
+    });
+  }
+
+  ankerl::nanobench::Bench throughput_bench_7;
+  throughput_bench_7
+      .title("7-cards throughput")
+      .unit("hand")
+      .epochs(1)
+      .epochIterations(1)
+      .batch(133784560)  // Number of 7-card hands.
+      .performanceCounters(true);
+
+  {
+    PokerHandEval<7> phe("tables/bfs7.phe");
+    throughput_bench_7.run("bfs7", [&]() {
+      phe.sweep([](auto hand, auto score) { ankerl::nanobench::doNotOptimizeAway(score); });
+    });
+  }
+
+  {
+    PokerHandEval<7> phe("tables/dfs7.phe");
+    throughput_bench_7.run("dfs7", [&]() {
+      phe.sweep([](auto hand, auto score) { ankerl::nanobench::doNotOptimizeAway(score); });
+    });
+  }
+
+  {
+    PokerHandEval<7> phe("tables/veb7.phe");
+    throughput_bench_7.run("veb7", [&]() {
+      phe.sweep([](auto hand, auto score) { ankerl::nanobench::doNotOptimizeAway(score); });
     });
   }
 }
