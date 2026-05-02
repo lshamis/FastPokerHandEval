@@ -112,21 +112,21 @@ void bench_throughput() {
   {
     PokerHandEval<HandSize> phe("tables/bfs" + std::to_string(HandSize) + ".phe");
     b.run("bfs", [&]() {
-      phe.sweep([](auto hand, auto score) { ankerl::nanobench::doNotOptimizeAway(score); });
+      phe.sweep([](auto, auto score) { ankerl::nanobench::doNotOptimizeAway(score); });
     });
   }
 
   {
     PokerHandEval<HandSize> phe("tables/dfs" + std::to_string(HandSize) + ".phe");
     b.run("dfs", [&]() {
-      phe.sweep([](auto hand, auto score) { ankerl::nanobench::doNotOptimizeAway(score); });
+      phe.sweep([](auto, auto score) { ankerl::nanobench::doNotOptimizeAway(score); });
     });
   }
 
   {
     PokerHandEval<HandSize> phe("tables/veb" + std::to_string(HandSize) + ".phe");
     b.run("veb", [&]() {
-      phe.sweep([](auto hand, auto score) { ankerl::nanobench::doNotOptimizeAway(score); });
+      phe.sweep([](auto, auto score) { ankerl::nanobench::doNotOptimizeAway(score); });
     });
   }
 }

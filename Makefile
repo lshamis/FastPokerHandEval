@@ -1,6 +1,18 @@
 CXX = g++
 CXXFLAGS = -O3 -std=c++17 -Wall -I. -Ithird_party
 
+PGO_DIR ?= pgo
+
+PGO_GEN_FLAGS = -fprofile-generate -fprofile-dir=$(PGO_DIR)
+PGO_USE_FLAGS = -fprofile-use -fprofile-correction -fprofile-dir=$(PGO_DIR)
+
+PGO ?=
+ifeq ($(PGO),gen)
+	CXXFLAGS += $(PGO_GEN_FLAGS)
+else ifeq ($(PGO),use)
+	CXXFLAGS += $(PGO_USE_FLAGS)
+endif
+
 # Generate Tables
 GEN_H = generate_tables/common.h \
     generate_tables/fsm.h \
@@ -39,4 +51,15 @@ bench: bin/benchmarks
 
 .PHONY: clean
 clean:
-	rm -rf bin tables
+	rm -rf bin tables $(PGO_DIR)
+
+.PHONY: pgo-bench
+pgo-bench:
+	mkdir -p $(PGO_DIR)
+	rm -f bin/benchmarks
+	rm -rf $(PGO_DIR)/*.gcda
+	$(MAKE) PGO=gen bin/benchmarks
+	./bin/benchmarks > /dev/null
+	rm -f bin/benchmarks
+	$(MAKE) PGO=use bin/benchmarks
+	./bin/benchmarks
