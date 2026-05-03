@@ -109,7 +109,41 @@ uint32_t PokerHandEval<hand_size>::eval(const Container& hand) const {
 template <uint8_t hand_size>
 template <typename Fn>
 void PokerHandEval<hand_size>::sweep(Fn fn) const {
-  sweep(std::array<uint32_t, 0>{}, fn);
+  uint32_t stack[hand_size + 1] = {};
+  std::array<uint32_t, hand_size> hand;
+
+  // Create first legal hand.
+  for (uint32_t c = 0; c < hand_size; c++) {
+    hand[c] = c;
+    stack[c + 1] = table_[stack[c] + c];
+  }
+  fn(hand, stack[hand_size]);
+
+  // Generate all remaining hands.
+  while (true) {
+    int32_t idx = hand_size - 1;
+    uint32_t max_card = 51;
+    while (idx >= 0) {
+      uint32_t card = hand[idx];
+
+      if (card < max_card) {
+        // Found the rightmost position that can be incremented.
+        break;
+      }
+      idx--;
+      max_card--;
+    }
+    if (idx < 0) {
+      return;
+    }
+
+    // Advance the pivot and refill the tail with the smallest possible cards.
+    for (uint32_t card = hand[idx] + 1; idx < hand_size; idx++, card++) {
+      hand[idx] = card;
+      stack[idx + 1] = table_[stack[idx] + hand[idx]];
+    }
+    fn(hand, stack[hand_size]);
+  }
 }
 
 template <uint8_t hand_size>
@@ -118,9 +152,12 @@ void PokerHandEval<hand_size>::sweep(const Container& prefix, Fn fn) const {
   uint32_t stack[hand_size + 1] = {};
   std::array<uint32_t, hand_size> hand;
 
+  // Signed prefix size to simplify comparisons.
+  auto prefix_size = static_cast<int32_t>(prefix.size());
+
   // Populate with prefix cards.
   uint32_t seen_cards[52] = {};
-  for (uint32_t i = 0; i < prefix.size(); i++) {
+  for (uint32_t i = 0; i < prefix_size; i++) {
     hand[i] = prefix[i];
     stack[i + 1] = table_[stack[i] + hand[i]];
 
@@ -128,7 +165,7 @@ void PokerHandEval<hand_size>::sweep(const Container& prefix, Fn fn) const {
   }
 
   // Build deck with remaining cards.
-  uint32_t deck_size = 52 - prefix.size();
+  uint32_t deck_size = 52 - prefix_size;
   uint32_t deck[deck_size];
   uint32_t deck_lookup[52];
   for (uint32_t di = 0, c = 0; c < 52; c++) {
@@ -140,30 +177,26 @@ void PokerHandEval<hand_size>::sweep(const Container& prefix, Fn fn) const {
   }
 
   // Create first legal hand.
-  for (uint32_t hand_idx = prefix.size(); hand_idx < hand_size; hand_idx++) {
-    hand[hand_idx] = deck[hand_idx - prefix.size()];
+  for (uint32_t hand_idx = prefix_size; hand_idx < hand_size; hand_idx++) {
+    hand[hand_idx] = deck[hand_idx - prefix_size];
     stack[hand_idx + 1] = table_[stack[hand_idx] + hand[hand_idx]];
   }
   fn(hand, stack[hand_size]);
 
   // Generate all remaining hands.
   while (true) {
-    uint32_t start_idx = hand_size - 1;
-    while (start_idx >= prefix.size()) {
-      uint32_t deck_idx = deck_lookup[hand[start_idx]];
-      uint32_t max_deck_idx = deck_size - (hand_size - start_idx);
+    int32_t start_idx = hand_size - 1;
+    while (start_idx >= prefix_size) {
+      uint32_t card = deck_lookup[hand[start_idx]];
+      uint32_t max_card = deck_size - (hand_size - start_idx);
 
-      if (deck_idx < max_deck_idx) {
+      if (card < max_card) {
         // Found the rightmost position that can be incremented.
         break;
       }
-      if (start_idx == prefix.size()) {
-        // Cannot advance any further (last combination).
-        return;
-      }
       start_idx--;
     }
-    if (start_idx < prefix.size()) {
+    if (start_idx < prefix_size) {
       return;
     }
 
