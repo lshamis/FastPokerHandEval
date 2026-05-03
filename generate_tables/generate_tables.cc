@@ -23,7 +23,7 @@ using IdMap = std::array<Card, 52>;
 
 IdMap suit_major_map() {
   IdMap m{};
-  std::iota(m.begin(), m.end(), 52);
+  std::iota(m.begin(), m.end(), 0);
   return m;
 }
 
@@ -66,14 +66,15 @@ Score eval7_with_map(const Hand& hand, const IdMap& id_map) {
 // Generates tables for 5 and 7-card poker hands, using various layout schemes.
 // We use the cactus_kev eval, which uses the following int-to-card matching:
 //   0 -> 2c
-//   1 -> 3c
-//   2 -> 4c
-//  ..
-//  11 -> Kc
-//  12 -> Ac
-//  13 -> 2d
+//   1 -> 2d
+//   2 -> 2h
+//   3 -> 2s
+//   4 -> 3c
 //  ..
 //  51 -> As
+//
+// Rank-major ordering is used to improve cache efficiency by keeping
+// same-rank transitions adjacent in the lookup table.
 //
 // You may choose a different mapping by switching out the eval to one of your
 // choice.
